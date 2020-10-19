@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="Boris Bischoff">
+    <title>Corona Log</title>
+
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" href="/docs/4.5/assets/img/favicons/apple-touch-icon.png" sizes="180x180">
+    <link rel="icon" href="/docs/4.5/assets/img/favicons/favicon-32x32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="/docs/4.5/assets/img/favicons/favicon-16x16.png" sizes="16x16" type="image/png">
+    <link rel="manifest" href="/docs/4.5/assets/img/favicons/manifest.json">
+    <link rel="mask-icon" href="/docs/4.5/assets/img/favicons/safari-pinned-tab.svg" color="#563d7c">
+    <link rel="icon" href="/docs/4.5/assets/img/favicons/favicon.ico">
+    <meta name="msapplication-config" content="/docs/4.5/assets/img/favicons/browserconfig.xml">
+    <meta name="theme-color" content="#563d7c">
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+    <script src="./js/hybrid-crypto.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <link rel="stylesheet" href="./css/corona-log.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <span class="navbar-brand">
+            🦠 Corona Log
+        </span>
+        <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <a class="nav-link active" id="pills-log-tab" data-toggle="pill" href="#pills-log" role="tab" aria-controls="pills-log" aria-selected="true">📅</a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a class="nav-link" id="pills-profile-tab" data-toggle="pill" href="#pills-profile" role="tab" aria-controls="pills-profile" aria-selected="false">🙂</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="pills-about-tab" data-toggle="pill" href="#pills-about" role="tab" aria-controls="pills-about" aria-selected="false">ℹ️</a>
+            </li>
+          </ul>
+    </nav>
+    
+    <div class="container">
+        <div class="tab-content col-md mb-4" id="pills-tabContent">
+
+            <div class="tab-pane fade show active" id="pills-log" role="tabpanel" aria-labelledby="pills-log-tab">
+                <h3><span id="greeting"></span> <span id="nicknameGreeting"></span></h3>
+
+                <!-- Button trigger modal -->
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#newEntry">
+                    New log entry
+                </button>
+
+                <div id="logEntries">
+
+                </div>
+                <div id="statusCheck"></div>
+
+                <!-- Modal -->
+                <div class="modal fade" id="newEntry" tabindex="-1" aria-labelledby="newEntryLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newEntryLabel">Create new log entry</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <form id="newEntryForm">
+                            <div class="form-group">
+                                <label for="inputDate">Date</label>
+                                <input type="date" class="form-control" id="inputDate" aria-describedby="inputDateHelp" name="inputDate" placeholder="18.10.2020" pattern="^((0[1-9]|1[0-9]|2[0-9])\.02|31.(0[13578]|1[02])|30\.((!02)0[1-9]|1[0-2])|(0[1-9]|1[0-9]|2[0-9])\.(0[1-9]|1[0-2]))\.20[0-9]{2}$" required>
+                                <small id="inputDateHelp" class="form-text text-muted">When did you go?</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="inputTime">Time</label>
+                                <input type="time" class="form-control" id="inputTime" aria-describedby="inputTimeHelp" name="inputTime" placeholder="18:00" pattern="^(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$" required>
+                                <small id="inputTimeHelp" class="form-text text-muted">When did you go?</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="inputVenue">Venue</label>
+                                <input type="text" class="form-control" id="inputVenue" aria-describedby="inputVenueHelp" placeholder="That bar in Kreuzberg">
+                                <small id="inputVenueHelp" class="form-text text-muted">Where did you go?</small>
+                            </div>
+                            
+                            <div class="row mx-0">
+                                <div class="form-group form-check-inline">
+                                    <input type="checkbox" class="form-check-input" id="inputMask" name="inputMask">
+                                    <label class="form-check-label" for="inputMask">Mask worn</label>
+                                </div>
+                                <div class="form-group form-check-inline">
+                                    <input type="checkbox" class="form-check-input" id="inputDistance" name="inputDistance">
+                                    <label class="form-check-label" for="inputDistance">Distance kept</label>                                
+                                </div>
+                            </div>
+
+                            <div class="row mx-0">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="inputLocation" id="inputLocationInside" value="inside" checked>
+                                    <label class="form-check-label" for="inputLocationInside">inside</label>
+                                </div>                    
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="inputLocation" id="inputLocationOutside" value="outside">
+                                    <label class="form-check-label" for="inputLocationOutside">outside</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="inputNotes">Notes</label>
+                                <textarea class="form-control" id="inputNotes" rows="3"></textarea>
+                                <small id="inputNotesHelp" class="form-text text-muted">Has there happened anything you want to remind yourself of?</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputNumberPersons">Number of persons</label>
+                                <input type="range" min="1" max="3" value="1" class="form-control-range" id="inputNumberPersons">
+                                <span id="inputNumberPersonsDescription"></span> persons
+                                <small id="inputNumberPersonsHelp" class="form-text text-muted">How many people were there?</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputAmountTime">Amount of time</label>
+                                <input type="range" min="15" max="360" value="15" class="form-control-range" id="inputAmountTime">
+                                <span id="inputAmountTimeDescription"></span> minutes
+                                <small id="inputAmountTimeHelp" class="form-text text-muted">How long were you there (in minutes, from 15 to 360, i. e. 6 hours)?</small>
+                            </div>
+                            
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Submit</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div> 
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab">
+                <h3>Profile</h3>
+                <form id="nicknameForm">
+                    <div class="form-group">
+                        <label for="nicknameInput">Nickname</label>
+                        <input type="text" class="form-control" id="nicknameInput" aria-describedby="nicknameHelp">
+                        <small id="nicknameHelp" class="form-text text-muted">We can call you by that name!</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                    <br>
+                    <a onClick="prepareExport()" href="#">Add device</a><br>
+                    <span id="qrCode"></span>
+                    <br><br><br>
+                    <span id="tanDataUrl"></span>
+            </div>
+                
+            <div class="tab-pane fade" id="pills-about" role="tabpanel" aria-labelledby="pills-about-tab">
+                <h3>About</h3>
+                <div>
+                    <div class="mb-3">
+                        <label for="rsaKeysCheck">Encryption</label>
+                        <div id="rsaKeysCheck" class="text-secondary"></div>
+                        <small id="rsaKeysCheckHelp" class="form-text text-muted">The check mark indicates that all information is treated confidentially.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userIdCheck">Anonymous user ID</label>
+                        <div id="userIdCheck" class="text-secondary"></div>
+                        <small id="userIdCheckHelp" class="form-text text-muted">We created an anonymous identifier to keep track of your encrypted log entries.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nicknameCheck">Nickname</label>
+                        <div id="nicknameCheck" class="text-secondary"></div>
+                        <small id="nicknameCheckHelp" class="form-text text-muted">This information is not being passed on to us. We keep it on your device and call you by that name.</small>
+                    </div>
+                </div>
+                <br>
+                <a href="#" onClick="performReset()">Reset</a>
+            </div>
+        </div>
+    </div>
+
+
+
+    <footer class="footer">
+        <div class="container text-center">
+            <span class="text-muted">Made with ❤️ by Boris Bischoff</span>
+        </div>
+    </footer>
+
+    <template id="entry">
+        <h4>Entry from <span id="entryDate"></span>, <span id="entryTime"></span></h4>
+        <div id="entryText"></div>
+        <div id="entryNotes"></div>
+    </template>
+
+<script type="text/javascript" src="./js/corona-log.js"></script>
+<!-- <script type="text/javascript" src="./js/onkeydown.js"></script> -->
+<script type="text/javascript" src="./js/qrcode.min.js"></script>
+</body>
+</html>
