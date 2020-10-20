@@ -298,10 +298,12 @@ function decryptMessage(cipherText) {
 }
 
 function encryptKeys(keys, password) {
-    let cipherText = CryptoJS.AES.encrypt(keys, password, {
-        format: JsonFormatter
-      });
-    return cipherText.toString();
+    return new Promise(resolve => {
+        let cipherText = CryptoJS.AES.encrypt(keys, password, {
+            format: JsonFormatter
+          });
+        resolve(cipherText.toString());
+    });
 }
 
 function decryptKeys(cipherText, password) {
@@ -326,18 +328,8 @@ async function prepareExport() {
     new QRCode(document.getElementById('qrCode'), 'https://corona-log.de/onboarding.html#' + token + '-' + password);
 
     var localKeyPairAndUserId = JSON.stringify(localStorage);
-    //console.log(localKeyPairAndUserId);
-    // var cipherText = encryptKeys(localKeyPairAndUserId, password);
-    // var cipherTextUtf8 = cipherText.toString(CryptoJS.enc.Utf8);
-    // console.log(cipherTextUtf8);
-    let cipherText = new Promise(function(resolve) {
-        resolve(encryptKeys(localKeyPairAndUserId, password));
-    });
-    cipherText.then(function(e) {
-        submitData('addToken', token, 'POST', e);
-    });
-    //var cipherTextUtf8 = cipherText.toString(CryptoJS.enc.Utf8);
-    //submitData('addToken', token, 'POST', cipherTextUtf8);
+    let cipherText = await encryptKeys(localKeyPairAndUserId, password);
+    submitData('addToken', token, 'POST', cipherText);
 }
 
 function prepareImport() {
