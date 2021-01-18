@@ -99,36 +99,25 @@ function escapeHtml(unsafeString) {
       .replace(/'/g, '&#039;');
 }
 
-function submitData(request, payload, method, jsonData) {
+async function submitData(request, payload, method, jsonData) {
     var endpoint = 'https://corona-log.de/api.php?request=' + request + '&payload=' + payload;
-    var unencryptedEntry = null;
-    var storageDataset = null;
-
-    fetch(endpoint, {
+    console.log(endpoint);
+    const endpointResponse = await fetch(endpoint, {
         method: method,
         body : jsonData
     })
     .then((resp) => resp.json())
     .then(function(response) {
-        if (request === 'getEntries') {
-            response.forEach(function(e) {
-                unencryptedEntry = decryptMessage(e.entry);
-                showEntry(unencryptedEntry);
-            });
-        } else if (request === 'getToken') {
-            if(response.code !== 'nok') {
-                storageDataset = decryptKeys(response[0].encryptedKey, localStorage.getItem('password'));
-                localStorage.clear();
-                importStorage(storageDataset);
-                document.getElementById('importSuccess').innerHTML = 'Import successful';
-            }
-        }
         return response;
+    })
+    .catch((error)=>{
+        return (error);
     });
+
+    return endpointResponse;
 }
 
 function showEntry(jsonData) {
-    console.log(jsonData);
     var data = JSON.parse(jsonData);
 
     let entryTemplate = document.getElementById('entry');
@@ -163,7 +152,7 @@ function showEntry(jsonData) {
 
     let logEntries = document.getElementById('logEntries');
     let clone = document.importNode(entryTemplate.content, true);
-    logEntries.appendChild(clone);
+    logEntries.prepend(clone);
 }
 
 function processData() {
@@ -178,11 +167,11 @@ function processData() {
     var payload = JSON.stringify({
         date: escapeHtml(document.getElementById('inputDate').value),
         time: escapeHtml(document.getElementById('inputTime').value),
-        venue: escapeHtml(document.getElementById('inputVenue').value),
+        venue: escapeHtml(document.getElementById('inputVenue').value.trim()),
         mask: document.getElementsByName('inputMask')[0].checked,
         distance: document.getElementsByName('inputDistance')[0].checked,
         location: location,
-        notes: escapeHtml(document.getElementById('inputNotes').value),
+        notes: escapeHtml(document.getElementById('inputNotes').value.trim()),
         numberPersons: getNumberPersonsString(document.getElementById('inputNumberPersons').value),
         amountTime:escapeHtml(document.getElementById('inputAmountTime').value)
     });
@@ -192,13 +181,31 @@ function processData() {
     showEntry(payload);
 }
 
-function getLogTab() {
+async function getLogTab() {
+    let userid = findUserId();
+    console.log(userId);
+    if (userId === null) {
+        getLogTab();
+    }
+
     var greeting = document.getElementById('greeting');
     greeting.innerHTML = getGreeting();
     nicknameGreeting = document.getElementById('nicknameGreeting');
     nicknameGreeting.innerHTML = getNickname();
 
-    submitData('getEntries', findUserId(), 'GET', null);
+    try {
+        var response = await submitData('getEntries', userId, 'GET', null);
+    } catch(e) {
+        alert(e);
+    }
+
+    if (response.code !== 'nok') {
+        response.forEach(function(e) {
+            console.log(e);
+            unencryptedEntry = decryptMessage(e.entry);
+            showEntry(unencryptedEntry);
+        });
+    }
 
     var inputNumberPersonsSlider= document.getElementById('inputNumberPersons');
     var inputNumberPersonsDescription = document.getElementById('inputNumberPersonsDescription');
@@ -297,13 +304,11 @@ function decryptMessage(cipherText) {
     return crypt.decrypt(localStorage.getItem('privateKey'), cipherText).message;
 }
 
-function encryptKeys(keys, password) {
-    return new Promise(resolve => {
-        let cipherText = CryptoJS.AES.encrypt(keys, password, {
-            format: JsonFormatter
-          });
-        resolve(cipherText.toString());
-    });
+async function encryptKeys(keys, password) {
+    let cipherText = CryptoJS.AES.encrypt(keys, password, {
+        format: JsonFormatter
+      });
+    return cipherText.toString();
 }
 
 function decryptKeys(cipherText, password) {
@@ -320,24 +325,47 @@ function importStorage(storageDataset) {
     });
 }
 
-async function prepareExport() {
-    var token = generateRandomString(4);
-    var password = generateRandomString(8);
+async function importLocalStorage(token) {
+    var encryptedLocalStorage = null;
+    
+    try {
+        encryptedLocalStorage = await submitData('retrieveEncryptedLocalStorage', token, 'GET', null);
+    } catch(e) {
+        alert(e);
+    }
 
-    document.getElementById('tanDataUrl').innerHTML = '<pre>https://corona-log.de/onboarding.html#' + token + '-' + password + '</pre>';
-    new QRCode(document.getElementById('qrCode'), 'https://corona-log.de/onboarding.html#' + token + '-' + password);
+    console.log(encryptedLocalStorage);
 
-    var localKeyPairAndUserId = JSON.stringify(localStorage);
-    let cipherText = await encryptKeys(localKeyPairAndUserId, password);
-    submitData('addToken', token, 'POST', cipherText);
+    if(encryptedLocalStorage.code !== 'nok') {
+        let elsJson = encryptedLocalStorage[0].encryptedStorage;
+        console.log(elsJson);
+        let storageDataset = decryptMessage(elsJson);
+        console.log("dec: " + storageDataset);
+        localStorage.clear();
+        importStorage(storageDataset);
+        location.reload();
+    } else {
+        setTimeout(function() {
+            importLocalStorage(token);
+        }, 5000);
+    }
 }
 
-function prepareImport() {
-    var action = window.location.href.split('#')[1];
-    var tan = action.split('-')[0];
-    localStorage.setItem('password', action.split('-')[1]);
+async function linkToExistingAccount() {
+    var localPublicKey = JSON.stringify(localStorage.getItem('publicKey'));
+    try {
+        var responseAfterUpload = await submitData('linkToExistingAccount', null, 'POST', localPublicKey);
+    } catch(e) {
+        alert(e);
+    }
 
-    submitData('getToken', tan, 'GET', null);
+    console.log(responseAfterUpload);
+    var token = responseAfterUpload.message;
+    
+    document.getElementById('tanDataUrl').innerHTML = '<pre><small>https://corona-log.de/onboarding.html#' + token + '</small></pre>';
+    new QRCode(document.getElementById('qrCode'), 'https://corona-log.de/onboarding.html#' + token);
+
+    importLocalStorage(token);
 }
 
 function setNickname(nickname) {

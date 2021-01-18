@@ -13,9 +13,11 @@ interface DBOperationsInterface {
     public function getUserId($payload);
     public function getEntries($payload);
     public function addEntry($payload, $jsonObject);
-    public function addToken($payload, $jsonObject);
-    public function getToken($payload);
-    public function removeToken($payload);
+    public function linkToExistingAccount($payload, $jsonObject);
+    public function retrievePublicKey($payload);
+    public function retrieveEncryptedLocalStorage($payload);
+    public function addKeysToTransfer($payload, $jsonObject);
+    public function removeEncryptedLocalStorage($payload);
 }
 
 ?>
