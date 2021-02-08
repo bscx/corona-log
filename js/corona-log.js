@@ -9,48 +9,8 @@ log.addEventListener('onClick', getLogTab());
 profile.addEventListener('onClick', getProfileTab());
 about.addEventListener('onClick', getAboutTab());
 
-var cryptEntropy = generateRandomString(32);
+var cryptEntropy = generateRandomString(1024);
 var crypt = new Crypt({ entropy: cryptEntropy });
-
-var JsonFormatter = {
-    stringify: function(cipherParams) {
-      // create json object with ciphertext
-      var jsonObj = { ct: cipherParams.ciphertext.toString(CryptoJS.enc.Base64) };
-
-      // optionally add iv or salt
-      if (cipherParams.iv) {
-        jsonObj.iv = cipherParams.iv.toString();
-      }
-
-      if (cipherParams.salt) {
-        jsonObj.s = cipherParams.salt.toString();
-      }
-
-      // stringify json object
-      return JSON.stringify(jsonObj);
-    },
-    parse: function(jsonStr) {
-      // parse json string
-      var jsonObj = JSON.parse(jsonStr);
-
-      // extract ciphertext from json object, and create cipher params object
-      var cipherParams = CryptoJS.lib.CipherParams.create({
-        ciphertext: CryptoJS.enc.Base64.parse(jsonObj.ct)
-      });
-
-      // optionally extract iv or salt
-
-      if (jsonObj.iv) {
-        cipherParams.iv = CryptoJS.enc.Hex.parse(jsonObj.iv);
-      }
-
-      if (jsonObj.s) {
-        cipherParams.salt = CryptoJS.enc.Hex.parse(jsonObj.s);
-      }
-
-      return cipherParams;
-    }
-  };
 
 // Thanks to Mihai Alexandru-Ionut
 // https://stackoverflow.com/questions/43917622/how-to-create-random-string-in-javascript
@@ -118,6 +78,9 @@ async function submitData(request, payload, method, jsonData) {
 }
 
 function showEntry(jsonData) {
+    if (jsonData === null) {
+        return null;
+    }
     var data = JSON.parse(jsonData);
 
     let entryTemplate = document.getElementById('entry');
@@ -155,7 +118,7 @@ function showEntry(jsonData) {
     logEntries.prepend(clone);
 }
 
-function processData() {
+async function processData() {
     var location = null;
     var inputLocation = document.getElementsByName('inputLocation');
     if (inputLocation[0].checked) {
@@ -177,8 +140,9 @@ function processData() {
     });
 
     encryptedPayload = encryptMessage(payload);
-    submitData('addEntry', findUserId(), 'POST', encryptedPayload);
+    await submitData('addEntry', findUserId(), 'POST', encryptedPayload);
     showEntry(payload);
+    
 }
 
 async function getLogTab() {
@@ -199,7 +163,7 @@ async function getLogTab() {
         alert(e);
     }
 
-    if (response.code !== 'nok') {
+    if (response.code != 'nok') {
         response.forEach(function(e) {
             console.log(e);
             unencryptedEntry = decryptMessage(e.entry);
@@ -218,13 +182,13 @@ async function getLogTab() {
     inputNumberPersonsSlider.oninput = function() { inputNumberPersonsDescription.innerHTML = getNumberPersonsString(this.value); }
     inputAmountTimeSlider.oninput = function() { inputAmountTimeDescription.innerHTML = this.value; }
 
-    var newEntryForm = document.getElementById('newEntryForm');
-    newEntryForm.addEventListener('submit', function(e) { 
+    $('#newEntryFormSubmit').unbind("click").click(function(e){
+        e.preventDefault();
         processData();
         // document.getElementById('newEntryClose').click;
-        $('#newEntry').modal('hide')
-        e.preventDefault();
-    }, false);
+        $('#newEntry').modal('hide');
+    });
+    $('#newEntry').removeData();
 }
 
 function getProfileTab() {
@@ -251,7 +215,7 @@ function getAboutTab() {
 }
 
 function generateKeyPair() {
-    var rsaEntropy = generateRandomString(32);
+    var rsaEntropy = generateRandomString(1024);
     var rsa = new RSA({ entropy: rsaEntropy });
 
     document.getElementById('statusCheck').innerHTML = `<p>Hold on a second! We're preparing your account.</p>
@@ -266,7 +230,7 @@ function generateKeyPair() {
         localStorage.setItem("privateKey", privateKey);
         document.getElementById('statusCheck').innerHTML = '';
         getAboutTab();
-    }, 2048);
+    }, 4096);
 }
 
 function generateUserId() {
@@ -301,21 +265,12 @@ function encryptMessage(plainText) {
 }
 
 function decryptMessage(cipherText) {
-    return crypt.decrypt(localStorage.getItem('privateKey'), cipherText).message;
-}
-
-async function encryptKeys(keys, password) {
-    let cipherText = CryptoJS.AES.encrypt(keys, password, {
-        format: JsonFormatter
-      });
-    return cipherText.toString();
-}
-
-function decryptKeys(cipherText, password) {
-    let plainText = CryptoJS.AES.decrypt(cipherText, password, {
-        format: JsonFormatter
-      });
-    return plainText.toString(CryptoJS.enc.Utf8);
+    try {
+        return crypt.decrypt(localStorage.getItem('privateKey'), cipherText).message;
+    } catch(e) {
+        alert(e);
+        return null;
+    }
 }
 
 function importStorage(storageDataset) {
